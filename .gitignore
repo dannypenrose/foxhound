@@ -1,0 +1,33 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Config (contains local paths — use config.example.yaml as template)
+config.yaml
+
+# Data directories (large, local-only)
+data/chroma_db/
+data/rag_ready/
+data/alias_map.json
+
+# Query/analysis outputs
+*.csv
+evidence/
+evidence*.json
+results*.json
+*_analysis.md
+*_output.md
+
+# Environment and secrets
+.env
+*.key
+
+# OS files
+.DS_Store

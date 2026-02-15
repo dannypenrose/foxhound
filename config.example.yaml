@@ -1,0 +1,60 @@
+database:
+  path: "./data/chroma_db"
+  collection: "all_sources"
+
+deduplication:
+  rag_ready_path: "./data/rag_ready"
+  strip_quoted_text: true
+  skip_empty_replies: true
+  thread_by: ["message_id", "in_reply_to", "references"]
+
+ingestion:
+  sources:
+    # Email sources — add one entry per folder
+    - type: email
+      folder: inbox
+      format: eml
+      path: "~/path/to/inbox-emails"
+    - type: email
+      folder: sent
+      format: eml
+      path: "~/path/to/sent-emails"
+
+    # Diary / log entries (Markdown files split by header)
+    # - type: diary
+    #   format: markdown
+    #   path: "~/path/to/diary"
+    #   entry_separator: "## "
+
+    # Meeting notes (Word or Markdown)
+    # - type: meeting_note
+    #   format: docx
+    #   path: "~/path/to/meeting-notes"
+    #   parse_attendees: true
+    #   parse_action_items: true
+
+    # Documents (PDF, Word, plain text)
+    # - type: document
+    #   format: pdf
+    #   path: "~/path/to/documents"
+
+  embedding_model: "all-MiniLM-L6-v2"
+  chunk_size: 1000
+  chunk_overlap: 200
+
+models:
+  local_embedding: "all-MiniLM-L6-v2"
+  local_triage_llm: "ollama/mistral:7b"
+  analysis_api: "openrouter/deepseek/deepseek-v3.2"
+  fallback_api: "openrouter/google/gemini-2.0-flash-001"
+
+privacy:
+  pseudonymise_before_api: true
+  alias_map_path: "./data/alias_map.json"
+  pseudonymise_fields: ["sender", "recipient", "cc", "attendees", "speakers"]
+  force_local_for_sources: ["diary"]
+
+cost_controls:
+  confirm_before_api_call: true
+  max_cost_per_query: 1.00
+  warn_above: 0.10
