@@ -4,6 +4,15 @@ A local, privacy-first document search and analysis pipeline. Ingest emails, dia
 
 Foxhound tracks down what matters across large, messy document collections without sending anything to the cloud (unless you choose to).
 
+## Use Cases
+
+- **Workplace disputes** — Gather email trails, meeting notes, and diary entries to build a chronological evidence pack for HR or legal review
+- **Due diligence** — Search across thousands of documents for red flags, inconsistencies, or undisclosed risks before a deal closes
+- **Subject access requests (SARs)** — Quickly locate every document mentioning a specific person across all source types
+- **Internal investigations** — Cross-reference communications between multiple parties to establish who knew what and when
+- **Contract review** — Semantic search across large document sets to find relevant clauses, commitments, or obligations
+- **Research synthesis** — Merge notes, papers, and meeting minutes into a single searchable corpus, then use AI to surface key themes
+
 ## What's Included
 
 | Stage | Script | What It Does | Cost |
