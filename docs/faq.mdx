@@ -1,0 +1,128 @@
+# Frequently Asked Questions
+
+Common questions about Foxhound's behaviour, data integrity, and design decisions.
+
+## Email Deduplication
+
+### Will emails be lost if I have separate archive and sent folders?
+
+**No.** Every `.eml` file from every configured source folder is parsed and assigned to a thread. No emails are filtered or dropped during threading.
+
+Here's what happens step by step:
+
+1. All `.eml` files from all configured sources are parsed into a flat list
+2. Each email is assigned to a thread based on `Message-ID`, `In-Reply-To`, and `References` headers
+3. Every email in the list is written to its thread directory as an individual `.txt` file
+
+A sent email with no reply has a unique `Message-ID` and no `In-Reply-To` pointing to it from another email. It becomes a **standalone single-message thread** — it is not lost, merged, or collapsed.
+
+The dedup output includes an **integrity check** that confirms every parsed email made it into a thread, plus a per-folder breakdown so you can verify counts against your source directories.
+
+### What does "deduplication" actually remove?
+
+Deduplication strips **quoted reply text** within each email, not entire emails. When someone replies to an email, their mail client typically includes the full text of the previous message below their new content. Foxhound strips that repeated text so only the new content from each message is stored.
+
+The original `.eml` files are never modified — they are preserved as-is (the "evidence tier"). Only the `data/rag_ready/` output contains the stripped versions.
+
+### What if the same email exists in both my archive and sent folders?
+
+If the same `.eml` file (identical `Message-ID`) appears in multiple source folders, **both copies** are included in the thread. Foxhound logs a `NOTICE` when this happens so you can see exactly which emails appear in multiple folders.
+
+This means you may see a duplicate entry in the thread output. This is intentional — it's safer to have a duplicate than to risk dropping a message. The duplicate will not affect search results because `query.py` deduplicates chunks by `message_id` at query time.
+
+### How are threads constructed?
+
+Foxhound uses three methods to group emails into threads, in priority order:
+
+1. **`In-Reply-To` / `References` headers** — follows the reply chain to find the root message
+2. **`Thread-Topic` header** — fallback for Outlook-style emails that may lack standard threading headers
+3. **Standalone** — emails with no threading headers become their own single-message thread
+
+Threads are sorted chronologically. Each message gets its own file within the thread directory, alongside a `metadata.json` with full participant and date information.
+
+### What does "empty skipped" mean in the output?
+
+After stripping quoted text, signatures, and disclaimers, some emails have no remaining content (e.g., a reply that was just "Thanks!" followed by a signature block, or a forwarded message with no added commentary). These are counted as "empty skipped" in the summary.
+
+The email still appears in the thread's `metadata.json` — only its text file is omitted since there's nothing useful to embed.
+
+## Search and Retrieval
+
+### Why do I sometimes get the same email multiple times in search results?
+
+Long emails are split into overlapping chunks during ingestion (1000 characters with 200-character overlap). A single email may have multiple chunks that match your query. `query.py` automatically collapses these back into a single result using the `message_id` metadata, but you may see different similarity scores depending on which chunk matched.
+
+### What's the difference between `--semantic` and `--sender` / `--date` filters?
+
+- **`--semantic`** performs vector similarity search — it finds documents that are conceptually similar to your query text, even if they use different words
+- **`--sender`**, **`--date`**, and other filters use ChromaDB metadata filtering — exact matches on structured fields
+
+These can be combined. For example, `--semantic "budget concerns" --sender "alice@example.com"` finds semantically similar content specifically from Alice.
+
+### How many results should I retrieve with `--top-k`?
+
+Start broad. For a comprehensive search, use `--top-k 100` or `--top-k 200`. Cosine similarity retrieval is free and fast, so there's no cost penalty for casting a wide net. The expensive filtering happens later during AI analysis (triage stage), which only processes results you explicitly send to it.
+
+## Privacy and Cost
+
+### Does Foxhound send my data to the cloud?
+
+**Only if you choose to**, and only with safeguards:
+
+- **Embedding and search** are entirely local (free `all-MiniLM-L6-v2` model)
+- **Analysis with `--local`** uses Ollama on your machine — nothing leaves
+- **Cloud analysis** pseudonymises all names and email addresses before sending, and requires explicit `y/n` confirmation with a cost estimate
+
+### What does pseudonymisation protect?
+
+Before any cloud API call, Foxhound replaces all email addresses and personal names with aliases (e.g., `alice@example.com` → `Person-A`). The alias map is stored locally at `data/alias_map.json` and never sent to any API. Real names are restored locally after the cloud response is received.
+
+### How do cost controls work?
+
+Three layers of protection:
+
+1. **`confirm_before_api_call: true`** — prompts `y/n` before every paid API call
+2. **`warn_above: 0.10`** — extra warning for calls estimated above $0.10
+3. **`max_cost_per_query: 1.00`** — hard block on calls above $1.00
+
+All three are enabled by default in `config.example.yaml`.
+
+## Configuration
+
+### How do I add a new email folder?
+
+Add another entry under `ingestion.sources` in `config.yaml`:
+
+```yaml
+ingestion:
+  sources:
+    - type: email
+      folder: inbox
+      format: eml
+      path: "~/path/to/inbox-emails"
+    - type: email
+      folder: sent
+      format: eml
+      path: "~/path/to/sent-emails"
+    - type: email
+      folder: archive
+      format: eml
+      path: "~/path/to/archive-emails"
+```
+
+The `folder` value is a label — it appears in metadata and search filters but doesn't affect how emails are parsed. Use meaningful names so you can filter by folder during queries.
+
+After adding a new source, re-run `uv run python dedup.py` then `uv run python ingest.py`.
+
+### Do I need to re-ingest everything when I add new emails?
+
+Currently, yes. `ingest.py` rebuilds the ChromaDB collection from scratch. For most corpora (tens of thousands of emails), this takes a few minutes. Incremental ingestion is not yet implemented.
+
+### What file formats are supported?
+
+| Source Type | Formats |
+|-------------|---------|
+| Email | `.eml` |
+| Diary/logs | Markdown (`.md`) |
+| Meeting notes | Word (`.docx`), Markdown |
+| Documents | PDF, Word (`.docx`), plain text |

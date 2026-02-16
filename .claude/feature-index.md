@@ -45,3 +45,4 @@ Quick reference for locating files by feature area.
 - `docs/guides/` - How-to guides (multi-search, models, privacy, export)
 - `docs/concepts/` - Architecture and two-stage scoring explanations
 - `docs/reference/` - CLI commands and configuration reference
+- `docs/faq.mdx` - FAQ: data integrity, deduplication, privacy, cost controls
