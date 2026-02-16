@@ -97,11 +97,12 @@ Checkpoints save every wave — if interrupted, re-run to resume.
 
 ### 7. Deep Analysis (on triaged results)
 
+Use `--deep-only` to skip triage and run deep analysis on already-triaged data.
 Start with `--min-relevance 5` to avoid missing borderline evidence:
 
 ```bash
 uv run python analyze.py evidence/triaged.json \
-  --full-pipeline \
+  --deep-only \
   --min-relevance 5 \
   --context "Build a chronological timeline of key decisions, who was involved, and what information was available at each decision point" \
   --model deepseek \

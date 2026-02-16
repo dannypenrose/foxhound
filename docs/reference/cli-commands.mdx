@@ -95,7 +95,7 @@ uv run python analyze.py results.json \
 
 # Step 2: Deep analysis on triaged results (deepseek recommended)
 uv run python analyze.py triaged.json \
-  --full-pipeline --min-relevance 5 \
+  --deep-only --min-relevance 5 \
   --context "Key themes" --model deepseek --dry-run
 
 # Retry failed triage batches
@@ -130,6 +130,7 @@ uv run python analyze.py results.json --triage --local --context "Focus" --outpu
 | `--local` | Use Ollama Mistral 7B (free, private, slow) |
 | `--triage` | Triage only — score and save results without deep analysis |
 | `--full-pipeline` | Triage first, then deep analysis on high-scoring docs |
+| `--deep-only` | Skip triage, run deep analysis on already-triaged data |
 | `--retry-failed` | Re-triage only failed documents from a previous run |
 | `--min-relevance N` | Minimum triage score for deep analysis (default: 7, recommend 5) |
 | `--truncate N` | Truncate each doc body to N chars for triage (e.g. 500) |
