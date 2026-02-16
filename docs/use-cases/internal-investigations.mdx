@@ -74,13 +74,26 @@ uv run python merge.py evidence/*.json --output evidence/merged.json
 Run triage as a standalone step so results are saved to disk:
 
 ```bash
+# Recommended: gemini-flash for triage (cheapest, fastest)
 uv run python analyze.py evidence/merged.json \
   --triage \
+  --model gemini-flash \
+  --truncate 500 \
+  --concurrency 5 \
+  --context "Key decisions, who was involved, what information was available" \
+  --output evidence/triaged.json \
+  --dry-run
+
+# Free, private, slow (local Mistral 7B):
+uv run python analyze.py evidence/merged.json \
+  --triage \
+  --local \
   --context "Key decisions, who was involved, what information was available" \
   --output evidence/triaged.json
 ```
 
-Checkpoints save every 10 batches — if interrupted, re-run to resume.
+Use `gemini-flash` for triage (cheapest, fastest). Use `--truncate 500` and `--concurrency 5` for speed.
+Checkpoints save every wave — if interrupted, re-run to resume.
 
 ### 7. Deep Analysis (on triaged results)
 
@@ -112,5 +125,8 @@ uv run python export.py analysis_output.md --output investigation-timeline.md
 - Combine `--sender` filters with `--semantic` to find specific topics discussed by specific people
 - Meeting notes often contain the clearest record of decisions — filter with `--source-type meeting_note`
 - For maximum privacy during investigation, use `--local` to keep all analysis on-machine
+- Use `gemini-flash` for triage (cheapest, fastest), `deepseek` for deep analysis (best reasoning)
+- Use `--truncate 500` and `--concurrency 5` for fast triage
+- Use `--retry-failed` to re-triage failed batches without re-running everything
 - Use `--read N` to inspect individual results in full before exporting
 - Triage checkpoints save progress — re-run to resume if interrupted

@@ -38,35 +38,49 @@ import yaml
 
 from pseudonymise import Pseudonymiser
 
-# Model pricing (per million tokens, USD)
+# Model pricing (per million tokens, USD) — updated Feb 2026
 MODEL_PRICING = {
-    "deepseek": {
-        "id": "deepseek/deepseek-v3.2",
-        "input": 0.25,
-        "output": 0.38,
-        "context_window": 164000,
-        "description": "DeepSeek V3.2 — GPT-4 quality at fraction of cost",
-    },
     "gemini-flash": {
         "id": "google/gemini-2.0-flash-001",
         "input": 0.10,
         "output": 0.40,
         "context_window": 1000000,
-        "description": "Gemini 2.0 Flash — 1M context, very cheap",
+        "description": "Gemini 2.0 Flash — cheapest, fast, good for triage",
+    },
+    "deepseek": {
+        "id": "deepseek/deepseek-v3.2",
+        "input": 0.25,
+        "output": 0.38,
+        "context_window": 164000,
+        "description": "DeepSeek V3.2 — best value for deep analysis",
+    },
+    "gemini-2.5": {
+        "id": "google/gemini-2.5-flash",
+        "input": 0.30,
+        "output": 2.50,
+        "context_window": 1048576,
+        "description": "Gemini 2.5 Flash — newer, thinking model",
+    },
+    "gemini-3": {
+        "id": "google/gemini-3-flash-preview",
+        "input": 0.50,
+        "output": 3.00,
+        "context_window": 1048576,
+        "description": "Gemini 3 Flash — latest, agentic workflows",
     },
     "gemini-free": {
         "id": "google/gemini-2.0-flash-exp:free",
         "input": 0.0,
         "output": 0.0,
         "context_window": 1000000,
-        "description": "Gemini 2.0 Flash Exp — FREE preview",
+        "description": "Gemini 2.0 Flash Exp — FREE (rate limited)",
     },
     "haiku": {
         "id": "anthropic/claude-3.5-haiku",
         "input": 0.80,
         "output": 4.00,
         "context_window": 200000,
-        "description": "Claude 3.5 Haiku — fast, good for scoring",
+        "description": "Claude 3.5 Haiku — high quality, most expensive",
     },
 }
 
@@ -221,8 +235,14 @@ def call_ollama(prompt: str, model: str = "mistral:7b") -> str:
         raise RuntimeError("Ollama not found. Install from https://ollama.ai")
 
 
-def format_emails_for_prompt(documents: list[dict], max_chars: int = 500000) -> str:
-    """Format documents into prompt-ready text with metadata headers."""
+def format_emails_for_prompt(documents: list[dict], max_chars: int = 500000,
+                             truncate_body: int = 0) -> str:
+    """Format documents into prompt-ready text with metadata headers.
+
+    Args:
+        truncate_body: If >0, truncate each document body to this many chars.
+                       Useful for triage where full text isn't needed.
+    """
     parts = []
     total_chars = 0
 
@@ -237,6 +257,8 @@ def format_emails_for_prompt(documents: list[dict], max_chars: int = 500000) -> 
             f"---\n"
         )
         body = doc.get("text_full", doc.get("text_preview", ""))
+        if truncate_body > 0 and len(body) > truncate_body:
+            body = body[:truncate_body] + "\n[... truncated for triage ...]"
         entry = header + body + "\n\n"
 
         if total_chars + len(entry) > max_chars:
@@ -250,13 +272,19 @@ def format_emails_for_prompt(documents: list[dict], max_chars: int = 500000) -> 
 
 
 def run_triage(documents: list[dict], context: str, config: dict,
-               checkpoint_file: str = "evidence/triage_checkpoint.json") -> list[dict]:
-    """Run local triage extraction with Mistral 7B (free).
+               model_key: str = None,
+               checkpoint_file: str = "evidence/triage_checkpoint.json",
+               truncate_body: int = 0,
+               concurrency: int = 1) -> list[dict]:
+    """Run triage extraction to score document relevance.
 
+    Uses local Mistral 7B by default (free), or a paid model via --model.
     Saves progress to a checkpoint file every 10 batches so work isn't lost
     if the process crashes. On restart, resumes from the last checkpoint.
     """
     import re
+
+    use_api = model_key is not None and model_key != "local"
 
     checkpoint_path = Path(checkpoint_file)
     start_index = 0
@@ -282,8 +310,28 @@ def run_triage(documents: list[dict], context: str, config: dict,
         return all_results
 
     remaining = len(documents) - start_index
-    print(f"\n  Running triage on {remaining} documents (local Mistral 7B)...")
-    print(f"  Cost: $0 (local model)")
+
+    if use_api:
+        model_info = MODEL_PRICING.get(model_key, {})
+        print(f"\n  Running triage on {remaining} documents ({model_key})...")
+        print(f"  Model: {model_info.get('description', model_key)}")
+        # Sample-based cost estimate
+        batch_size = 10
+        est_batches = (remaining + batch_size - 1) // batch_size
+        sample_batch = documents[start_index:start_index + batch_size]
+        sample_text = format_emails_for_prompt(sample_batch, truncate_body=truncate_body)
+        sample_prompt = TRIAGE_PROMPT.format(context=context, emails=sample_text)
+        avg_input_tokens = estimate_tokens(sample_prompt)
+        est_input_tokens = avg_input_tokens * est_batches
+        est_output_tokens = est_batches * 500
+        est_cost = (est_input_tokens / 1_000_000 * model_info.get("input", 0) +
+                    est_output_tokens / 1_000_000 * model_info.get("output", 0))
+        print(f"  Estimated cost: ${est_cost:.4f}")
+    else:
+        print(f"\n  Running triage on {remaining} documents (local Mistral 7B)...")
+        print(f"  Cost: $0 (local model)")
+    if truncate_body > 0:
+        print(f"  Truncating bodies to {truncate_body} chars (faster, lower cost)")
     print(f"  Checkpoint: {checkpoint_file}")
 
     # Process in batches of 10 for better quality
@@ -291,50 +339,106 @@ def run_triage(documents: list[dict], context: str, config: dict,
     total_batches = (len(documents) + batch_size - 1) // batch_size
     checkpoint_interval = 10  # Save every 10 batches
 
-    for i in range(start_index, len(documents), batch_size):
-        batch = documents[i:i + batch_size]
-        batch_text = format_emails_for_prompt(batch)
+    def _process_batch(batch_info):
+        """Process a single batch — returns (batch_index, batch_docs, response_or_error)."""
+        idx, batch_docs = batch_info
+        batch_text = format_emails_for_prompt(batch_docs, truncate_body=truncate_body)
         prompt = TRIAGE_PROMPT.format(context=context, emails=batch_text)
-        batch_num = i // batch_size + 1
-
-        print(f"  Triage batch {batch_num}/{total_batches}...")
-
         try:
-            response = call_ollama(prompt)
-            # Try to parse JSON from response
-            try:
-                # Extract JSON blocks
-                json_blocks = re.findall(r'\{[^{}]+\}', response, re.DOTALL)
-                for j, block in enumerate(json_blocks):
-                    try:
-                        parsed = json.loads(block)
-                        if i + j < len(documents):
-                            documents[i + j]["triage"] = parsed
-                            documents[i + j]["triage"]["confidence"] = "triage"
-                            all_results.append(documents[i + j])
-                    except json.JSONDecodeError:
-                        pass
-            except Exception:
-                # If JSON parsing fails, still mark as triaged with raw response
-                for j, doc in enumerate(batch):
-                    doc["triage"] = {
-                        "raw_response": response[:500],
-                        "confidence": "triage",
-                        "relevance_score": 5,
-                    }
-                    all_results.append(doc)
+            if use_api:
+                response = call_openrouter(prompt, model_key, config)
+            else:
+                response = call_ollama(prompt)
+            return (idx, batch_docs, response, None)
         except Exception as e:
-            print(f"  WARNING: Triage batch failed: {e}")
-            for doc in batch:
-                doc["triage"] = {"confidence": "failed", "relevance_score": 0}
-                all_results.append(doc)
+            return (idx, batch_docs, None, e)
 
-        # Checkpoint every N batches
-        if batch_num % checkpoint_interval == 0:
-            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(checkpoint_path, "w") as f:
-                json.dump({"next_index": i + batch_size, "results": all_results}, f)
-            print(f"  (Checkpoint saved: {len(all_results)} documents triaged)")
+    def _parse_response(idx, batch_docs, response):
+        """Parse triage response and attach scores to documents."""
+        results = []
+        try:
+            json_blocks = re.findall(r'\{[^{}]+\}', response, re.DOTALL)
+            for j, block in enumerate(json_blocks):
+                try:
+                    parsed = json.loads(block)
+                    if j < len(batch_docs):
+                        documents[idx + j]["triage"] = parsed
+                        documents[idx + j]["triage"]["confidence"] = "triage"
+                        results.append(documents[idx + j])
+                except json.JSONDecodeError:
+                    pass
+        except Exception:
+            for j, doc in enumerate(batch_docs):
+                doc["triage"] = {
+                    "raw_response": response[:500],
+                    "confidence": "triage",
+                    "relevance_score": 5,
+                }
+                results.append(doc)
+        return results
+
+    # Build all batch work items
+    batch_items = []
+    for i in range(start_index, len(documents), batch_size):
+        batch_items.append((i, documents[i:i + batch_size]))
+
+    if use_api and concurrency > 1:
+        # Concurrent API calls
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        print(f"  Concurrency: {concurrency} parallel requests")
+
+        processed = 0
+        for wave_start in range(0, len(batch_items), concurrency):
+            wave = batch_items[wave_start:wave_start + concurrency]
+            wave_num = wave_start // concurrency + 1
+            total_waves = (len(batch_items) + concurrency - 1) // concurrency
+            batch_from = wave_start + 1
+            batch_to = min(wave_start + concurrency, len(batch_items))
+            print(f"  Wave {wave_num}/{total_waves} (batches {batch_from}-{batch_to}/{len(batch_items)})...")
+
+            with ThreadPoolExecutor(max_workers=concurrency) as executor:
+                futures = {executor.submit(_process_batch, item): item for item in wave}
+                for future in as_completed(futures):
+                    idx, batch_docs, response, error = future.result()
+                    if error:
+                        print(f"    WARNING: Batch at doc {idx} failed: {error}")
+                        for doc in batch_docs:
+                            doc["triage"] = {"confidence": "failed", "relevance_score": 0}
+                            all_results.append(doc)
+                    else:
+                        results = _parse_response(idx, batch_docs, response)
+                        all_results.extend(results)
+                    processed += 1
+
+            # Checkpoint after each wave
+            if processed % checkpoint_interval == 0 or wave_start + concurrency >= len(batch_items):
+                last_idx = wave[-1][0] + batch_size
+                checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(checkpoint_path, "w") as f:
+                    json.dump({"next_index": last_idx, "results": all_results}, f)
+                print(f"  (Checkpoint saved: {len(all_results)} documents triaged)")
+    else:
+        # Sequential processing (local model or concurrency=1)
+        for batch_idx, (i, batch_docs) in enumerate(batch_items):
+            batch_num = batch_idx + 1
+            print(f"  Triage batch {batch_num}/{len(batch_items)}...")
+
+            idx, batch_docs, response, error = _process_batch((i, batch_docs))
+            if error:
+                print(f"  WARNING: Triage batch failed: {error}")
+                for doc in batch_docs:
+                    doc["triage"] = {"confidence": "failed", "relevance_score": 0}
+                    all_results.append(doc)
+            else:
+                results = _parse_response(idx, batch_docs, response)
+                all_results.extend(results)
+
+            # Checkpoint every N batches
+            if batch_num % checkpoint_interval == 0:
+                checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(checkpoint_path, "w") as f:
+                    json.dump({"next_index": i + batch_size, "results": all_results}, f)
+                print(f"  (Checkpoint saved: {len(all_results)} documents triaged)")
 
     # Final save and clean up checkpoint
     if checkpoint_path.exists():
@@ -441,8 +545,11 @@ def main():
         print("  --dry-run                 Estimate cost without API call")
         print("  --model MODEL             deepseek | gemini-flash | gemini-free | haiku")
         print("  --local                   Use local Ollama model (free, private)")
-        print("  --triage                  Local triage only (Mistral 7B, free)")
+        print("  --triage                  Triage only (local Mistral 7B by default, or use --model)")
         print("  --full-pipeline           Triage → filter → deep analysis")
+        print("  --retry-failed            Re-triage only failed documents from a previous run")
+        print("  --truncate N              Truncate each doc body to N chars for triage (e.g. 500)")
+        print("  --concurrency N           Run N triage batches in parallel (default: 1, try 5)")
         print("  --no-pseudonymise         Skip pseudonymisation (not recommended)")
         print("  --min-relevance N         Minimum relevance score for analysis (default: 7)")
         print("  --output FILE             Output file (default: analysis_output.md)")
@@ -461,8 +568,11 @@ def main():
     local = False
     triage_only = False
     full_pipeline = False
+    retry_failed = False
     pseudonymise = True
     min_relevance = 7
+    truncate_body = 0
+    concurrency = 1
     output_file = "analysis_output.md"
 
     i = 2
@@ -486,6 +596,15 @@ def main():
         elif arg == "--full-pipeline":
             full_pipeline = True
             i += 1
+        elif arg == "--retry-failed":
+            retry_failed = True
+            i += 1
+        elif arg == "--truncate" and i + 1 < len(sys.argv):
+            truncate_body = int(sys.argv[i + 1])
+            i += 2
+        elif arg == "--concurrency" and i + 1 < len(sys.argv):
+            concurrency = int(sys.argv[i + 1])
+            i += 2
         elif arg == "--no-pseudonymise":
             pseudonymise = False
             i += 1
@@ -517,19 +636,77 @@ def main():
     if local:
         model_key = "local"
 
+    # Determine triage model: None = local Mistral, otherwise use --model
+    triage_model = None if local or model_key == "local" else model_key
+
+    # Retry failed triage batches
+    if retry_failed:
+        failed = [d for d in documents if d.get("triage", {}).get("confidence") == "failed"]
+        passed = [d for d in documents if d.get("triage", {}).get("confidence") != "failed"]
+        if not failed:
+            print("  No failed documents to retry.")
+            return
+        print(f"  Found {len(failed)} failed documents to re-triage")
+        retried = run_triage(failed, context, config, model_key=triage_model,
+                             checkpoint_file="evidence/retry_checkpoint.json",
+                             truncate_body=truncate_body, concurrency=concurrency)
+        all_docs = passed + retried
+        all_docs.sort(key=lambda d: d.get("date", ""))
+        with open(output_file, "w") as f:
+            json.dump(all_docs, f, indent=2, default=str)
+        still_failed = sum(1 for d in retried if d.get("triage", {}).get("confidence") == "failed")
+        print(f"\n  Retry complete. Output: {output_file}")
+        print(f"  Re-triaged: {len(retried)}, still failed: {still_failed}")
+        return
+
     if triage_only:
         # Triage only mode
-        results = run_triage(documents, context, config)
+        if dry_run and triage_model:
+            # Show cost estimate by sampling real batch sizes
+            batch_size = 10
+            est_batches = (len(documents) + batch_size - 1) // batch_size
+            # Sample first 3 batches to get average prompt size
+            sample_tokens = []
+            for s in range(min(3, est_batches)):
+                batch = documents[s * batch_size:(s + 1) * batch_size]
+                batch_text = format_emails_for_prompt(batch, truncate_body=truncate_body)
+                prompt = TRIAGE_PROMPT.format(context=context, emails=batch_text)
+                sample_tokens.append(estimate_tokens(prompt))
+            avg_input_tokens = sum(sample_tokens) // len(sample_tokens)
+            est_input_tokens = avg_input_tokens * est_batches
+            est_output_tokens = est_batches * 500
+            model_info = MODEL_PRICING.get(triage_model, {})
+            est_cost = (est_input_tokens / 1_000_000 * model_info.get("input", 0) +
+                        est_output_tokens / 1_000_000 * model_info.get("output", 0))
+            print(f"\n  DRY RUN — Triage cost estimate:")
+            print(f"  Model:          {model_info.get('description', triage_model)}")
+            print(f"  Batches:        {est_batches}")
+            print(f"  Avg tokens/batch: ~{avg_input_tokens:,}")
+            print(f"  Total input:    ~{est_input_tokens:,} tokens")
+            print(f"  Total output:   ~{est_output_tokens:,} tokens")
+            print(f"  TOTAL COST:     ${est_cost:.4f}")
+            if truncate_body > 0:
+                print(f"  Truncation:     {truncate_body} chars/doc")
+            else:
+                print(f"  Tip: Use --truncate 500 to reduce cost and speed up triage")
+            return
+        results = run_triage(documents, context, config, model_key=triage_model,
+                             truncate_body=truncate_body, concurrency=concurrency)
         with open(output_file, "w") as f:
             json.dump(results, f, indent=2, default=str)
         print(f"\n  Triage complete. Output: {output_file}")
-        print(f"  Cost: $0")
+        if not triage_model:
+            print(f"  Cost: $0")
         return
 
     if full_pipeline:
-        # Stage 1: Triage (free)
-        print("\n  STAGE 1: Triage (local, free)")
-        triaged = run_triage(documents, context, config)
+        # Stage 1: Triage
+        if triage_model:
+            print(f"\n  STAGE 1: Triage ({triage_model})")
+        else:
+            print("\n  STAGE 1: Triage (local, free)")
+        triaged = run_triage(documents, context, config, model_key=triage_model,
+                             truncate_body=truncate_body, concurrency=concurrency)
 
         # Stage 2: Filter high-relevance
         high_relevance = [
