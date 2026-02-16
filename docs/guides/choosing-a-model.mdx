@@ -1,0 +1,84 @@
+# Choosing a Model
+
+Pick the right AI model for your use case and budget.
+
+## Available Models
+
+| Flag | Model | Input Cost | Output Cost | Context | Best For |
+|------|-------|-----------|-------------|---------|----------|
+| `--model deepseek` | DeepSeek V3.2 | $0.25/M | $0.38/M | 164K | Default. Best value |
+| `--model gemini-flash` | Gemini 2.0 Flash | $0.10/M | $0.40/M | 1M | Large document sets |
+| `--model gemini-free` | Gemini 2.0 Flash Exp | Free | Free | 1M | Testing |
+| `--model haiku` | Claude 3.5 Haiku | $0.80/M | $4.00/M | 200K | High-quality scoring |
+| `--local` | Ollama Mistral 7B | Free | Free | Local | Maximum privacy |
+
+## Decision Guide
+
+### Use DeepSeek (default) when:
+
+- You want the best balance of cost and quality
+- Your document set is under 164K tokens
+- Standard analysis and summarisation tasks
+
+```bash
+uv run python analyze.py results.json \
+  --context "Summarise key findings" \
+  --model deepseek
+```
+
+### Use Gemini Flash when:
+
+- You have a very large document set (\>500 documents)
+- You need the 1M token context window
+- Cost sensitivity is moderate
+
+```bash
+uv run python analyze.py results.json \
+  --context "Analyse all documents" \
+  --model gemini-flash
+```
+
+### Use Ollama (local) when:
+
+- Privacy is the top priority — nothing leaves your machine
+- You want free analysis with no API costs
+- You accept lower quality compared to cloud models
+
+```bash
+uv run python analyze.py results.json \
+  --context "Summarise findings" \
+  --local
+```
+
+### Use the Full Pipeline when:
+
+- You want to minimise costs on large document sets
+- Free local triage filters to high-relevance documents first
+- Only high-scoring documents go to the paid model
+
+```bash
+uv run python analyze.py results.json \
+  --full-pipeline \
+  --context "Identify key themes" \
+  --model deepseek
+```
+
+## Typical Costs (DeepSeek V3.2)
+
+| Query Type | Documents | Estimated Cost |
+|------------|-----------|---------------|
+| Quick targeted | 50-100 | $0.01-0.02 |
+| Standard | 100-300 | $0.02-0.05 |
+| Exploratory | 300-600 | $0.05-0.10 |
+| Comprehensive | 500-1500 | $0.10-0.25 |
+
+## Cost Safety
+
+All paid API calls show a cost estimate and require `y/n` confirmation before proceeding. Configure limits in `config.yaml`:
+
+```yaml
+analysis:
+  confirm_before_api_call: true
+  max_cost_per_query: 1.00
+  warn_above: 0.10
+```

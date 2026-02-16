@@ -1,0 +1,49 @@
+# Privacy and Pseudonymisation
+
+Protect sensitive data before sending anything to cloud AI models.
+
+## How It Works
+
+When using cloud API models, Foxhound automatically:
+
+1. Replaces all email addresses and names with aliases (e.g. `alice@example.com` becomes `Person-A`)
+2. Sends only the pseudonymised text to the API
+3. Restores real names in the returned analysis locally
+
+The alias map is stored locally at `data/alias_map.json` and never sent to any API.
+
+## Managing Aliases
+
+### View the current alias map
+
+```bash
+uv run python pseudonymise.py --show
+```
+
+### Pre-register a known identity
+
+```bash
+uv run python pseudonymise.py --add "Alice Smith" "alice@example.com"
+```
+
+### Reset all aliases
+
+```bash
+uv run python pseudonymise.py --reset
+```
+
+## Privacy Tiers
+
+| Tier | Method | Data Leaves Machine? |
+|------|--------|---------------------|
+| **Maximum** | `--local` (Ollama) | No |
+| **High** | Cloud + pseudonymisation (default) | Pseudonymised text only |
+| **Standard** | Cloud without pseudonymisation | Yes (not recommended) |
+
+## Recommendations
+
+- **Default behaviour is safe** — pseudonymisation is applied automatically for all cloud API calls
+- **Use `--local` for the most sensitive data** — nothing leaves your machine
+- **Pre-register key individuals** to ensure consistent alias mapping across sessions
+- **Review the alias map** before sharing any analysis output with third parties
+- **The alias map itself is sensitive** — it's gitignored and stored only locally

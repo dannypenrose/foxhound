@@ -1,0 +1,74 @@
+# Multi-Search Workflow
+
+Run several searches with different phrasings to maximise recall, then merge and deduplicate before analysis.
+
+## Why Multiple Searches?
+
+Semantic search matches conceptually similar content, but different phrasings cast different nets. A single search for "budget concerns" might miss documents about "cost overruns" or "financial pressure". Running multiple searches with varied phrasing catches more relevant results.
+
+## Step-by-Step
+
+### 1. Create an Evidence Directory
+
+```bash
+mkdir -p evidence
+```
+
+### 2. Run Multiple Semantic Searches
+
+Use different phrasings for the same concept:
+
+```bash
+uv run python query.py \
+  --semantic "project delays timeline concerns" \
+  --top-k 200 --export-json evidence/delays.json
+
+uv run python query.py \
+  --semantic "budget overrun cost escalation" \
+  --top-k 200 --export-json evidence/budget.json
+
+uv run python query.py \
+  --semantic "stakeholder feedback complaints" \
+  --top-k 200 --export-json evidence/feedback.json
+```
+
+### 3. Combine Metadata Filters
+
+Add sender, date, or source-type filters to narrow results:
+
+```bash
+uv run python query.py \
+  --semantic "project risk" \
+  --sender "pm@company.com" \
+  --date-range 2025-01-01 2025-06-30 \
+  --top-k 100 --export-json evidence/pm-risks.json
+```
+
+### 4. Merge and Deduplicate
+
+The merge tool removes duplicate documents found by multiple searches:
+
+```bash
+uv run python merge.py evidence/*.json --output evidence/merged.json
+```
+
+### 5. Analyse with Full Pipeline
+
+The full pipeline runs free local triage first, then sends only high-relevance documents to the paid model:
+
+```bash
+uv run python analyze.py evidence/merged.json \
+  --full-pipeline \
+  --context "Key project risks and stakeholder concerns" \
+  --model deepseek \
+  --dry-run
+```
+
+Review the cost estimate, then run without `--dry-run`.
+
+## Best Practices
+
+- Start broad, then narrow — cast a wide net first, then filter
+- Use 3-5 different phrasings per topic for good coverage
+- `--top-k 200` is a good default — adjust based on corpus size
+- Always `--dry-run` before paid analysis to check costs

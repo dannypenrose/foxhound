@@ -1,6 +1,6 @@
 # Foxhound - CLAUDE.md
 
-> **Feature Index**: [.claude/feature-index.md](.claude/feature-index.md) | **Docs**: [README.md](README.md)
+> **Feature Index**: [.claude/feature-index.md](.claude/feature-index.md) | **Docs**: [docs/](docs/) | **README**: [README.md](README.md)
 
 ---
 
@@ -13,6 +13,7 @@
 | Deduplicated sources | `data/rag_ready/` |
 | Alias map | `data/alias_map.json` |
 | Run any script | `uv run python <script>.py` |
+| MDX Docs | `docs/` (synced to doc site as `/foxhound/`) |
 
 **No dev servers** — all scripts are CLI tools run on-demand.
 

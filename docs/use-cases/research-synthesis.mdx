@@ -1,0 +1,89 @@
+# Research Synthesis
+
+Merge notes, papers, and meeting minutes into a single searchable corpus, then use AI to surface key themes.
+
+## The Problem
+
+Research projects accumulate notes, papers, meeting minutes, and correspondence across months or years. Key insights get buried in the volume. You need to synthesise findings across all sources to identify patterns and themes.
+
+## Workflow
+
+### 1. Configure All Research Sources
+
+```yaml
+ingestion:
+  sources:
+    - type: diary
+      path: "~/research/notes"
+      entry_separator: "## "
+    - type: meeting_note
+      path: "~/research/supervisor-meetings"
+    - type: document
+      path: "~/research/papers"
+    - type: document
+      path: "~/research/reports"
+```
+
+### 2. Ingest and Explore
+
+```bash
+uv run python ingest.py --reset
+
+# Understand what you have
+uv run python explore.py
+uv run python explore.py --source-type diary
+uv run python explore.py --source-type document
+```
+
+### 3. Theme-Based Searches
+
+Search for recurring themes across all source types:
+
+```bash
+mkdir -p evidence
+
+uv run python query.py \
+  --semantic "methodology approach research design" \
+  --top-k 200 --export-json evidence/methodology.json
+
+uv run python query.py \
+  --semantic "findings results conclusions outcomes" \
+  --top-k 200 --export-json evidence/findings.json
+
+uv run python query.py \
+  --semantic "limitations gaps future work recommendations" \
+  --top-k 200 --export-json evidence/gaps.json
+
+uv run python query.py \
+  --semantic "key insight breakthrough discovery pattern" \
+  --top-k 200 --export-json evidence/insights.json
+```
+
+### 4. Merge and Analyse
+
+```bash
+uv run python merge.py evidence/*.json --output evidence/merged.json
+
+uv run python analyze.py evidence/merged.json \
+  --full-pipeline \
+  --context "Synthesise key themes, recurring findings, methodological patterns, and identify gaps or contradictions across the research corpus" \
+  --model deepseek
+```
+
+### 5. Export for Writing
+
+```bash
+# Copy to clipboard for pasting into a writing tool
+uv run python export.py analysis_output.md --clipboard
+
+# Or save to file
+uv run python export.py analysis_output.md --output synthesis-report.md
+```
+
+## Tips
+
+- Use `--year` to compare themes across different time periods
+- Diary entries often capture informal insights that formal papers miss
+- Meeting notes contain decisions and direction changes not recorded elsewhere
+- For fully private analysis (no cloud), use `--local` with Ollama
+- Run multiple rounds with different context prompts to explore different angles

@@ -1,0 +1,82 @@
+# Configuration
+
+Foxhound is configured via `config.yaml` (copy from `config.example.yaml`). The config file is gitignored to protect local paths and API keys.
+
+## Setup
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+## Source Configuration
+
+### Email Sources
+
+```yaml
+deduplication:
+  source_paths:
+    - "~/path/to/exported-emails"
+    - "~/another/email-folder"
+```
+
+### Other Sources
+
+```yaml
+ingestion:
+  sources:
+    - type: diary
+      path: "~/path/to/diary"
+      entry_separator: "## "
+    - type: meeting_note
+      path: "~/path/to/meeting-notes"
+    - type: document
+      path: "~/path/to/documents"
+```
+
+### Source Types
+
+| Type | `type` value | Formats |
+|------|-------------|---------|
+| Email | (configured under `deduplication`) | `.eml` |
+| Diary/logs | `diary` | Markdown (`.md`) |
+| Meeting notes | `meeting_note` | Word (`.docx`), Markdown |
+| Documents | `document` | PDF, Word, plain text |
+
+## Cost Controls
+
+```yaml
+analysis:
+  confirm_before_api_call: true   # Always ask before spending
+  max_cost_per_query: 1.00        # Hard block above $1.00
+  warn_above: 0.10                # Extra warning above $0.10
+```
+
+## Embedding
+
+| Setting | Value |
+|---------|-------|
+| Model | `all-MiniLM-L6-v2` |
+| Chunk size | 1000 characters |
+| Chunk overlap | 200 characters |
+| Collection name | `all_sources` |
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENROUTER_API_KEY` | Only for paid analysis | OpenRouter API key (`sk-or-...`) |
+
+Set with:
+
+```bash
+export OPENROUTER_API_KEY=sk-or-your-key-here
+```
+
+## Data Directories
+
+| Directory | Contents | Gitignored |
+|-----------|----------|------------|
+| `data/rag_ready/` | Deduplicated thread files | Yes |
+| `data/chroma_db/` | ChromaDB vector database | Yes |
+| `data/alias_map.json` | Pseudonymisation mappings | Yes |
+| `evidence/` | Search result files | Yes |

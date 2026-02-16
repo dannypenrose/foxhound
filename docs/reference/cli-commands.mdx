@@ -1,0 +1,133 @@
+# CLI Commands
+
+All Foxhound scripts are run with `uv run python <script>.py`.
+
+## dedup.py — Email Deduplication
+
+Strips quoted text from email reply chains and groups messages into threads.
+
+```bash
+uv run python dedup.py
+```
+
+Thread detection uses Message-ID, In-Reply-To, and References headers, with Thread-Topic fallback for Outlook.
+
+## ingest.py — Embed Sources
+
+Embeds all configured sources into ChromaDB using `all-MiniLM-L6-v2`.
+
+```bash
+uv run python ingest.py          # Incremental ingest
+uv run python ingest.py --reset  # Re-ingest from scratch
+```
+
+| Flag | Description |
+|------|-------------|
+| `--reset` | Clear ChromaDB and re-ingest all sources |
+
+## explore.py — Corpus Exploration
+
+Free stats, sender breakdowns, date ranges, and interactive exploration.
+
+```bash
+uv run python explore.py
+uv run python explore.py --year 2025
+uv run python explore.py --sender someone@example.com
+uv run python explore.py --source-type meeting_note
+uv run python explore.py -i
+```
+
+| Flag | Description |
+|------|-------------|
+| `--year YYYY` | Filter stats to a specific year |
+| `--sender EMAIL` | Filter stats to a specific sender |
+| `--source-type TYPE` | Filter by source type (`email`, `diary`, `meeting_note`, `document`) |
+| `-i` | Interactive exploration mode |
+
+## query.py — Search and Filter
+
+Metadata filtering, semantic search, and export.
+
+```bash
+uv run python query.py --semantic "search phrase" --top-k 100
+uv run python query.py --sender someone@example.com --year 2025
+uv run python query.py --count-only --sender someone@example.com
+```
+
+| Flag | Description |
+|------|-------------|
+| `--semantic TEXT` | Semantic search query |
+| `--top-k N` | Number of results to return (default: 200) |
+| `--sender EMAIL` | Filter by sender (comma-separated for multiple) |
+| `--date-range START END` | Filter by date range (YYYY-MM-DD format) |
+| `--year YYYY` | Filter by year |
+| `--source-type TYPE` | Filter by source type |
+| `--count-only` | Show count only, no results |
+| `--show` | Show body previews inline |
+| `--read N` | Read result N in full |
+| `--open N` | Open source file for result N (macOS) |
+| `--export FILE.csv` | Export to CSV |
+| `--export-json FILE.json` | Export to JSON (for analysis pipeline) |
+
+## merge.py — Combine Results
+
+Merge and deduplicate multiple search result files.
+
+```bash
+uv run python merge.py evidence/*.json --output evidence/merged.json
+```
+
+| Flag | Description |
+|------|-------------|
+| `--output FILE` | Output file path |
+
+## analyze.py — AI Analysis
+
+AI-powered triage and deep analysis.
+
+```bash
+uv run python analyze.py results.json --context "Summarise findings" --model deepseek
+uv run python analyze.py results.json --full-pipeline --context "Key themes" --model deepseek
+uv run python analyze.py results.json --context "Summarise" --local
+uv run python analyze.py results.json --context "Summarise" --model deepseek --dry-run
+```
+
+| Flag | Description |
+|------|-------------|
+| `--context TEXT` | Analysis context/question |
+| `--model MODEL` | Model choice: `deepseek`, `gemini-flash`, `gemini-free`, `haiku` |
+| `--local` | Use Ollama Mistral 7B (free, private) |
+| `--full-pipeline` | Triage first, then deep analysis on high-scoring docs |
+| `--dry-run` | Show cost estimate without running |
+
+## pseudonymise.py — Privacy
+
+Manage pseudonymisation aliases.
+
+```bash
+uv run python pseudonymise.py --show
+uv run python pseudonymise.py --add "Alice Smith" "alice@example.com"
+uv run python pseudonymise.py --reset
+```
+
+| Flag | Description |
+|------|-------------|
+| `--show` | Display current alias map |
+| `--add NAME EMAIL` | Pre-register an identity |
+| `--reset` | Clear all aliases |
+
+## export.py — Format Output
+
+Format analysis for export.
+
+```bash
+uv run python export.py analysis_output.md --clipboard
+uv run python export.py analysis_output.md --output report.md
+uv run python export.py results.json --raw --clipboard
+```
+
+| Flag | Description |
+|------|-------------|
+| `--clipboard` | Copy to clipboard |
+| `--output FILE` | Save to file |
+| `--raw` | Export raw evidence package |

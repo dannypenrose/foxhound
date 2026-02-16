@@ -1,0 +1,89 @@
+# Internal Investigations
+
+Cross-reference communications between multiple parties to establish who knew what and when.
+
+## The Problem
+
+Internal investigations require tracing information flow across multiple people and communication channels. You need to build a timeline showing when key decisions were made, who was informed, and what was discussed.
+
+## Workflow
+
+### 1. Ingest All Relevant Sources
+
+```bash
+uv run python dedup.py
+uv run python ingest.py --reset
+```
+
+### 2. Map the Communication Landscape
+
+Use `explore.py` to understand who communicated and when:
+
+```bash
+# Full corpus overview
+uv run python explore.py
+
+# Focus on specific year
+uv run python explore.py --year 2025
+
+# Check specific individuals
+uv run python explore.py --sender alice@company.com
+uv run python explore.py --sender bob@company.com
+```
+
+### 3. Track Specific Communications
+
+Search for communications between key individuals:
+
+```bash
+mkdir -p evidence
+
+uv run python query.py \
+  --sender "alice@company.com,bob@company.com" \
+  --date-range 2025-01-01 2025-06-30 \
+  --export-json evidence/alice-bob.json
+```
+
+### 4. Search for Key Topics
+
+```bash
+uv run python query.py \
+  --semantic "approval authorisation sign-off decision" \
+  --date-range 2025-01-01 2025-06-30 \
+  --top-k 200 --export-json evidence/approvals.json
+
+uv run python query.py \
+  --semantic "risk warning concern escalation" \
+  --date-range 2025-01-01 2025-06-30 \
+  --top-k 200 --export-json evidence/warnings.json
+
+uv run python query.py \
+  --semantic "meeting minutes discussion agreed actions" \
+  --source-type meeting_note \
+  --top-k 200 --export-json evidence/meetings.json
+```
+
+### 5. Merge and Analyse
+
+```bash
+uv run python merge.py evidence/*.json --output evidence/merged.json
+
+uv run python analyze.py evidence/merged.json \
+  --full-pipeline \
+  --context "Build a chronological timeline of key decisions, who was involved, and what information was available at each decision point" \
+  --model deepseek
+```
+
+### 6. Export Timeline
+
+```bash
+uv run python export.py analysis_output.md --output investigation-timeline.md
+```
+
+## Tips
+
+- Use `--date-range` to narrow the investigation window
+- Combine `--sender` filters with `--semantic` to find specific topics discussed by specific people
+- Meeting notes often contain the clearest record of decisions — filter with `--source-type meeting_note`
+- For maximum privacy during investigation, use `--local` to keep all analysis on-machine
+- Use `--read N` to inspect individual results in full before exporting
