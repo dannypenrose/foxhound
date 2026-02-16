@@ -81,11 +81,11 @@ Checkpoints save every wave — if interrupted, re-run the same command to resum
 
 ### 6. Deep Analysis (on triaged results)
 
-Start with a lower threshold to avoid missing borderline documents:
+Use `--deep-only` to skip triage and run deep analysis on already-triaged data:
 
 ```bash
 uv run python analyze.py evidence/triaged.json \
-  --full-pipeline \
+  --deep-only \
   --min-relevance 5 \
   --context "Key project risks and stakeholder concerns" \
   --model deepseek \

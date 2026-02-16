@@ -84,6 +84,14 @@ MODEL_PRICING = {
     },
 }
 
+
+def get_triage_score(doc: dict) -> int:
+    """Get triage relevance score from a document, handling both key formats."""
+    triage = doc.get("triage", {})
+    # LLM returns "Relevance Score", code uses "relevance_score"
+    return triage.get("relevance_score", 0) or triage.get("Relevance Score", 0)
+
+
 # Analysis prompt templates
 TRIAGE_PROMPT = """You are analysing emails for relevance to an investigation.
 
@@ -547,6 +555,7 @@ def main():
         print("  --local                   Use local Ollama model (free, private)")
         print("  --triage                  Triage only (local Mistral 7B by default, or use --model)")
         print("  --full-pipeline           Triage → filter → deep analysis")
+        print("  --deep-only               Skip triage, run deep analysis on already-triaged data")
         print("  --retry-failed            Re-triage only failed documents from a previous run")
         print("  --truncate N              Truncate each doc body to N chars for triage (e.g. 500)")
         print("  --concurrency N           Run N triage batches in parallel (default: 1, try 5)")
@@ -568,6 +577,7 @@ def main():
     local = False
     triage_only = False
     full_pipeline = False
+    deep_only = False
     retry_failed = False
     pseudonymise = True
     min_relevance = 7
@@ -595,6 +605,9 @@ def main():
             i += 1
         elif arg == "--full-pipeline":
             full_pipeline = True
+            i += 1
+        elif arg == "--deep-only":
+            deep_only = True
             i += 1
         elif arg == "--retry-failed":
             retry_failed = True
@@ -699,7 +712,25 @@ def main():
             print(f"  Cost: $0")
         return
 
-    if full_pipeline:
+    if deep_only:
+        # Skip triage — use existing triage scores from input file
+        high_relevance = [
+            d for d in documents
+            if get_triage_score(d) >= min_relevance
+        ]
+        print(f"\n  Filtered to {len(high_relevance)} documents with triage score >= {min_relevance}"
+              f" (from {len(documents)} total)")
+
+        if not high_relevance:
+            print("  No documents meet the threshold. Try lowering --min-relevance")
+            documents.sort(key=lambda d: get_triage_score(d), reverse=True)
+            high_relevance = documents[:50]
+            print(f"  Using top {len(high_relevance)} by score instead")
+
+        print(f"\n  Deep Analysis ({model_key})")
+        analysis = run_analysis(high_relevance, context, model_key, config,
+                                pseudonymise=pseudonymise, dry_run=dry_run)
+    elif full_pipeline:
         # Stage 1: Triage
         if triage_model:
             print(f"\n  STAGE 1: Triage ({triage_model})")
@@ -711,7 +742,7 @@ def main():
         # Stage 2: Filter high-relevance
         high_relevance = [
             d for d in triaged
-            if d.get("triage", {}).get("relevance_score", 0) >= min_relevance
+            if get_triage_score(d) >= min_relevance
         ]
         print(f"\n  STAGE 2: Filtered to {len(high_relevance)} high-relevance documents "
               f"(score >= {min_relevance})")
@@ -719,7 +750,7 @@ def main():
         if not high_relevance:
             print("  No high-relevance documents found. Try lowering --min-relevance")
             # Fall back to top N by score
-            triaged.sort(key=lambda d: d.get("triage", {}).get("relevance_score", 0), reverse=True)
+            triaged.sort(key=lambda d: get_triage_score(d), reverse=True)
             high_relevance = triaged[:50]
             print(f"  Using top {len(high_relevance)} by score instead")
 

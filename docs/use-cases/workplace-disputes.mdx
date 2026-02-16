@@ -104,11 +104,12 @@ Use `--retry-failed` to re-triage only failed batches from a previous run.
 
 ### 7. Deep Analysis (on triaged results)
 
-Use `--min-relevance 5` to cast a wide net, then tighten if needed:
+Use `--deep-only` to skip triage and run deep analysis on already-triaged data.
+Start with `--min-relevance 5` to cast a wide net, then tighten if needed:
 
 ```bash
 uv run python analyze.py evidence/triaged.json \
-  --full-pipeline \
+  --deep-only \
   --min-relevance 5 \
   --context "Identify incidents, dates, and communications relevant to a workplace grievance" \
   --model deepseek \
