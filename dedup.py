@@ -26,6 +26,35 @@ from parsers.email_parser import parse_eml
 
 def build_threads(emails: list[dict]) -> dict[str, list[dict]]:
     """Group emails into threads using Message-ID / In-Reply-To / References."""
+    # Detect Message-ID collisions across folders (same email in multiple sources)
+    seen_ids: dict[str, list[dict]] = defaultdict(list)
+    for e in emails:
+        if e["message_id"]:
+            seen_ids[e["message_id"]].append(e)
+
+    cross_folder_dupes = {
+        mid: entries for mid, entries in seen_ids.items()
+        if len(entries) > 1 and len({e["folder"] for e in entries}) > 1
+    }
+    same_folder_dupes = {
+        mid: entries for mid, entries in seen_ids.items()
+        if len(entries) > 1 and len({e["folder"] for e in entries}) == 1
+    }
+
+    if cross_folder_dupes:
+        print(f"\n  NOTICE: {len(cross_folder_dupes)} email(s) found in multiple folders (duplicates in output):")
+        for mid, entries in list(cross_folder_dupes.items())[:10]:
+            folders = [e["folder"] for e in entries]
+            subject = entries[0].get("subject", "(no subject)")[:60]
+            print(f"    - {subject} | folders: {folders} | Message-ID: {mid[:50]}")
+        if len(cross_folder_dupes) > 10:
+            print(f"    ... and {len(cross_folder_dupes) - 10} more")
+
+    if same_folder_dupes:
+        print(f"\n  NOTICE: {len(same_folder_dupes)} duplicate Message-ID(s) within same folder:")
+        for mid, entries in list(same_folder_dupes.items())[:5]:
+            print(f"    - {entries[0].get('subject', '(no subject)')[:60]} | count: {len(entries)}")
+
     id_to_email = {e["message_id"]: e for e in emails if e["message_id"]}
     thread_map = defaultdict(list)
 
@@ -190,6 +219,21 @@ def main():
     total_dedup = sum(len(e["body_new"]) for e in all_emails)
     reduction = (1 - total_dedup / total_raw) * 100 if total_raw else 0
 
+    # Per-folder breakdown
+    folder_counts = defaultdict(int)
+    for e in all_emails:
+        folder_counts[e.get("folder", "unknown")] += 1
+
+    # Standalone emails (single-message threads) — important for sent-no-reply visibility
+    standalone_threads = {tid: msgs for tid, msgs in threads.items() if len(msgs) == 1}
+    standalone_by_folder = defaultdict(int)
+    for msgs in standalone_threads.values():
+        standalone_by_folder[msgs[0].get("folder", "unknown")] += 1
+
+    # Integrity check: every parsed email must appear in exactly one thread
+    emails_in_threads = sum(len(msgs) for msgs in threads.values())
+    integrity_ok = emails_in_threads == len(all_emails)
+
     print(f"\n{'='*50}")
     print(f"DEDUPLICATION COMPLETE")
     print(f"{'='*50}")
@@ -199,6 +243,19 @@ def main():
     print(f"  Empty skipped:      {stats['skipped_empty']:,}")
     print(f"  Content reduction:  {reduction:.0f}% ({total_raw:,} → {total_dedup:,} chars)")
     print(f"  Output directory:   {output_dir}")
+
+    print(f"\n  Per-folder breakdown:")
+    for folder, count in sorted(folder_counts.items()):
+        print(f"    {folder}: {count:,} emails")
+
+    print(f"\n  Standalone emails (single-message threads): {len(standalone_threads):,}")
+    for folder, count in sorted(standalone_by_folder.items()):
+        print(f"    {folder}: {count:,}")
+
+    print(f"\n  INTEGRITY CHECK: {'PASS' if integrity_ok else 'FAIL'} "
+          f"({emails_in_threads:,} in threads / {len(all_emails):,} parsed)")
+    if not integrity_ok:
+        print(f"  WARNING: {len(all_emails) - emails_in_threads} email(s) missing from threads!")
 
 
 if __name__ == "__main__":
