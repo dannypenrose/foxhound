@@ -63,18 +63,42 @@ uv run python query.py \
   --top-k 200 --export-json evidence/meetings.json
 ```
 
-### 5. Merge and Analyse
+### 5. Merge Results
 
 ```bash
 uv run python merge.py evidence/*.json --output evidence/merged.json
-
-uv run python analyze.py evidence/merged.json \
-  --full-pipeline \
-  --context "Build a chronological timeline of key decisions, who was involved, and what information was available at each decision point" \
-  --model deepseek
 ```
 
-### 6. Export Timeline
+### 6. Triage Separately (recommended)
+
+Run triage as a standalone step so results are saved to disk:
+
+```bash
+uv run python analyze.py evidence/merged.json \
+  --triage \
+  --context "Key decisions, who was involved, what information was available" \
+  --output evidence/triaged.json
+```
+
+Checkpoints save every 10 batches — if interrupted, re-run to resume.
+
+### 7. Deep Analysis (on triaged results)
+
+Start with `--min-relevance 5` to avoid missing borderline evidence:
+
+```bash
+uv run python analyze.py evidence/triaged.json \
+  --full-pipeline \
+  --min-relevance 5 \
+  --context "Build a chronological timeline of key decisions, who was involved, and what information was available at each decision point" \
+  --model deepseek \
+  --dry-run
+```
+
+Review the cost estimate, then run without `--dry-run`. Tighten to
+`--min-relevance 7` if output is noisy (no re-triage needed).
+
+### 8. Export Timeline
 
 ```bash
 uv run python export.py analysis_output.md --output investigation-timeline.md
@@ -82,8 +106,11 @@ uv run python export.py analysis_output.md --output investigation-timeline.md
 
 ## Tips
 
+- **Always triage separately** with `--triage --output` so results are saved
+- Start with `--min-relevance 5` to avoid missing borderline evidence
 - Use `--date-range` to narrow the investigation window
 - Combine `--sender` filters with `--semantic` to find specific topics discussed by specific people
 - Meeting notes often contain the clearest record of decisions — filter with `--source-type meeting_note`
 - For maximum privacy during investigation, use `--local` to keep all analysis on-machine
 - Use `--read N` to inspect individual results in full before exporting
+- Triage checkpoints save progress — re-run to resume if interrupted

@@ -85,11 +85,20 @@ uv run python merge.py evidence/*.json --output evidence/merged.json
 
 AI-powered triage and deep analysis.
 
+**Recommended workflow**: triage separately, then analyse at chosen threshold.
+
 ```bash
+# Step 1: Triage separately (saves results, resumable)
+uv run python analyze.py results.json --triage --context "Investigation focus" --output triaged.json
+
+# Step 2: Deep analysis on triaged results (adjustable threshold)
+uv run python analyze.py triaged.json --full-pipeline --min-relevance 5 --context "Key themes" --model deepseek --dry-run
+
+# Direct analysis (skips triage)
 uv run python analyze.py results.json --context "Summarise findings" --model deepseek
-uv run python analyze.py results.json --full-pipeline --context "Key themes" --model deepseek
+
+# Local only (free, private)
 uv run python analyze.py results.json --context "Summarise" --local
-uv run python analyze.py results.json --context "Summarise" --model deepseek --dry-run
 ```
 
 | Flag | Description |
@@ -97,8 +106,12 @@ uv run python analyze.py results.json --context "Summarise" --model deepseek --d
 | `--context TEXT` | Analysis context/question |
 | `--model MODEL` | Model choice: `deepseek`, `gemini-flash`, `gemini-free`, `haiku` |
 | `--local` | Use Ollama Mistral 7B (free, private) |
+| `--triage` | Triage only — score and save results without deep analysis |
 | `--full-pipeline` | Triage first, then deep analysis on high-scoring docs |
+| `--min-relevance N` | Minimum triage score for deep analysis (default: 7, recommend 5) |
+| `--output FILE` | Output file (default: `analysis_output.md`) |
 | `--dry-run` | Show cost estimate without running |
+| `--no-pseudonymise` | Skip pseudonymisation (not recommended for cloud models) |
 
 ## pseudonymise.py — Privacy
 

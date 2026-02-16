@@ -52,23 +52,43 @@ The merge tool removes duplicate documents found by multiple searches:
 uv run python merge.py evidence/*.json --output evidence/merged.json
 ```
 
-### 5. Analyse with Full Pipeline
+### 5. Triage Separately
 
-The full pipeline runs free local triage first, then sends only high-relevance documents to the paid model:
+Run triage as a standalone step so results are saved to disk. This lets you
+re-run deep analysis at different thresholds without re-triaging:
 
 ```bash
 uv run python analyze.py evidence/merged.json \
+  --triage \
+  --context "Key project risks and stakeholder concerns" \
+  --output evidence/triaged.json
+```
+
+Triage uses local Mistral 7B (free, private). Checkpoints save every 10
+batches — if interrupted, re-run the same command to resume.
+
+### 6. Deep Analysis (on triaged results)
+
+Start with a lower threshold to avoid missing borderline documents:
+
+```bash
+uv run python analyze.py evidence/triaged.json \
   --full-pipeline \
+  --min-relevance 5 \
   --context "Key project risks and stakeholder concerns" \
   --model deepseek \
   --dry-run
 ```
 
-Review the cost estimate, then run without `--dry-run`.
+Review the cost estimate, then run without `--dry-run`. If the output is
+too noisy, re-run at `--min-relevance 7` (no re-triage needed).
 
 ## Best Practices
 
 - Start broad, then narrow — cast a wide net first, then filter
 - Use 3-5 different phrasings per topic for good coverage
 - `--top-k 200` is a good default — adjust based on corpus size
+- **Always triage separately** with `--triage --output` so results are saved
+- Start with `--min-relevance 5` to avoid missing borderline evidence
 - Always `--dry-run` before paid analysis to check costs
+- Triage checkpoints save progress — re-run to resume if interrupted
