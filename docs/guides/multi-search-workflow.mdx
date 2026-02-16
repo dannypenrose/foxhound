@@ -58,14 +58,26 @@ Run triage as a standalone step so results are saved to disk. This lets you
 re-run deep analysis at different thresholds without re-triaging:
 
 ```bash
+# Recommended: gemini-flash for triage (cheapest, fastest)
 uv run python analyze.py evidence/merged.json \
   --triage \
+  --model gemini-flash \
+  --truncate 500 \
+  --concurrency 5 \
+  --context "Key project risks and stakeholder concerns" \
+  --output evidence/triaged.json \
+  --dry-run
+
+# Free, private, slow (local Mistral 7B):
+uv run python analyze.py evidence/merged.json \
+  --triage \
+  --local \
   --context "Key project risks and stakeholder concerns" \
   --output evidence/triaged.json
 ```
 
-Triage uses local Mistral 7B (free, private). Checkpoints save every 10
-batches — if interrupted, re-run the same command to resume.
+Use `gemini-flash` for triage (cheapest, fastest). Use `--truncate 500` and `--concurrency 5` for speed.
+Checkpoints save every wave — if interrupted, re-run the same command to resume.
 
 ### 6. Deep Analysis (on triaged results)
 
@@ -91,4 +103,7 @@ too noisy, re-run at `--min-relevance 7` (no re-triage needed).
 - **Always triage separately** with `--triage --output` so results are saved
 - Start with `--min-relevance 5` to avoid missing borderline evidence
 - Always `--dry-run` before paid analysis to check costs
+- Use `gemini-flash` for triage (cheapest, fastest), `deepseek` for deep analysis (best reasoning)
+- Use `--truncate 500` and `--concurrency 5` for fast triage
+- Use `--retry-failed` to re-triage failed batches without re-running everything
 - Triage checkpoints save progress — re-run to resume if interrupted

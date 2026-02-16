@@ -88,29 +88,54 @@ AI-powered triage and deep analysis.
 **Recommended workflow**: triage separately, then analyse at chosen threshold.
 
 ```bash
-# Step 1: Triage separately (saves results, resumable)
-uv run python analyze.py results.json --triage --context "Investigation focus" --output triaged.json
+# Step 1: Triage (fast — gemini-flash recommended for triage)
+uv run python analyze.py results.json \
+  --triage --model gemini-flash --truncate 500 --concurrency 5 \
+  --context "Investigation focus" --output triaged.json --dry-run
 
-# Step 2: Deep analysis on triaged results (adjustable threshold)
-uv run python analyze.py triaged.json --full-pipeline --min-relevance 5 --context "Key themes" --model deepseek --dry-run
+# Step 2: Deep analysis on triaged results (deepseek recommended)
+uv run python analyze.py triaged.json \
+  --full-pipeline --min-relevance 5 \
+  --context "Key themes" --model deepseek --dry-run
 
-# Direct analysis (skips triage)
-uv run python analyze.py results.json --context "Summarise findings" --model deepseek
+# Retry failed triage batches
+uv run python analyze.py triaged.json \
+  --retry-failed --model gemini-flash --truncate 500 \
+  --context "Investigation focus" --output triaged-fixed.json
 
-# Local only (free, private)
-uv run python analyze.py results.json --context "Summarise" --local
+# Local only (free, private, slow)
+uv run python analyze.py results.json --triage --local --context "Focus" --output triaged.json
 ```
+
+### Model Recommendations (Feb 2026)
+
+| Model | Best For | Input/Output Cost | Speed |
+|-------|----------|-------------------|-------|
+| `gemini-flash` | **Triage** — cheapest, fastest | $0.10/$0.40 per M tokens | Very fast |
+| `deepseek` | **Deep analysis** — best reasoning per dollar | $0.25/$0.38 per M tokens | Moderate |
+| `gemini-2.5` | Analysis — newer thinking model | $0.30/$2.50 per M tokens | Fast |
+| `gemini-3` | Analysis — latest, agentic | $0.50/$3.00 per M tokens | Fast |
+| `gemini-free` | Testing — free but rate-limited | Free | Fast |
+| `haiku` | High quality — most expensive | $0.80/$4.00 per M tokens | Fast |
+| `--local` | **Maximum privacy** — Ollama Mistral 7B | Free | Very slow |
+
+**Rule of thumb**: Use `gemini-flash` for triage (cheap, fast, good enough for scoring), `deepseek` for deep analysis (best reasoning per dollar).
+
+### Flags
 
 | Flag | Description |
 |------|-------------|
 | `--context TEXT` | Analysis context/question |
-| `--model MODEL` | Model choice: `deepseek`, `gemini-flash`, `gemini-free`, `haiku` |
-| `--local` | Use Ollama Mistral 7B (free, private) |
+| `--model MODEL` | Model choice (see table above) — applies to triage and analysis |
+| `--local` | Use Ollama Mistral 7B (free, private, slow) |
 | `--triage` | Triage only — score and save results without deep analysis |
 | `--full-pipeline` | Triage first, then deep analysis on high-scoring docs |
+| `--retry-failed` | Re-triage only failed documents from a previous run |
 | `--min-relevance N` | Minimum triage score for deep analysis (default: 7, recommend 5) |
+| `--truncate N` | Truncate each doc body to N chars for triage (e.g. 500) |
+| `--concurrency N` | Run N triage batches in parallel (default: 1, try 5 for API models) |
 | `--output FILE` | Output file (default: `analysis_output.md`) |
-| `--dry-run` | Show cost estimate without running |
+| `--dry-run` | Show cost estimate without running (works with `--triage --model`) |
 | `--no-pseudonymise` | Skip pseudonymisation (not recommended for cloud models) |
 
 ## pseudonymise.py — Privacy

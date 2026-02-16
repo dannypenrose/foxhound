@@ -78,14 +78,29 @@ Run triage as a standalone step so results are saved to disk. This lets you
 re-run deep analysis at different relevance thresholds without re-triaging.
 
 ```bash
+# Recommended: gemini-flash for triage (cheapest, fastest)
 uv run python analyze.py evidence/merged.json \
   --triage \
+  --model gemini-flash \
+  --truncate 500 \
+  --concurrency 5 \
+  --context "Identify incidents, dates, and communications relevant to a workplace grievance" \
+  --output evidence/triaged.json \
+  --dry-run
+
+# Free, private, slow (local Mistral 7B):
+uv run python analyze.py evidence/merged.json \
+  --triage \
+  --local \
   --context "Identify incidents, dates, and communications relevant to a workplace grievance" \
   --output evidence/triaged.json
 ```
 
-Triage uses local Mistral 7B (free, private) but is slow for large corpora.
-Checkpoints save every 10 batches — if interrupted, re-run to resume.
+Use `gemini-flash` for triage — it's the cheapest and fastest API model.
+`--truncate 500` caps doc bodies to 500 chars (enough for relevance scoring, much faster).
+`--concurrency 5` sends 5 batches in parallel.
+Checkpoints save every wave — if interrupted, re-run to resume.
+Use `--retry-failed` to re-triage only failed batches from a previous run.
 
 ### 7. Deep Analysis (on triaged results)
 
@@ -117,5 +132,8 @@ uv run python export.py analysis_output.md --clipboard
 - Use `--date-range` to focus on the relevant period
 - The pseudonymisation layer automatically protects names when using cloud models
 - For maximum privacy, use `--local` to keep everything on your machine
+- Use `gemini-flash` for triage (cheapest, fastest), `deepseek` for deep analysis (best reasoning)
+- Use `--truncate 500` and `--concurrency 5` for fast triage
+- Use `--retry-failed` to re-triage failed batches without re-running everything
 - Export to CSV with `--export results.csv` for spreadsheet review
 - Triage checkpoints save progress — re-run to resume if interrupted
