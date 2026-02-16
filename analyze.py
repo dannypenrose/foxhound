@@ -249,28 +249,61 @@ def format_emails_for_prompt(documents: list[dict], max_chars: int = 500000) -> 
     return "".join(parts)
 
 
-def run_triage(documents: list[dict], context: str, config: dict) -> list[dict]:
-    """Run local triage extraction with Mistral 7B (free)."""
-    print(f"\n  Running triage on {len(documents)} documents (local Mistral 7B)...")
+def run_triage(documents: list[dict], context: str, config: dict,
+               checkpoint_file: str = "evidence/triage_checkpoint.json") -> list[dict]:
+    """Run local triage extraction with Mistral 7B (free).
+
+    Saves progress to a checkpoint file every 10 batches so work isn't lost
+    if the process crashes. On restart, resumes from the last checkpoint.
+    """
+    import re
+
+    checkpoint_path = Path(checkpoint_file)
+    start_index = 0
+    all_results = []
+
+    # Resume from checkpoint if available
+    if checkpoint_path.exists():
+        try:
+            with open(checkpoint_path) as f:
+                checkpoint = json.load(f)
+            all_results = checkpoint.get("results", [])
+            start_index = checkpoint.get("next_index", 0)
+            if start_index > 0:
+                print(f"\n  Resuming triage from document {start_index}/{len(documents)} "
+                      f"({len(all_results)} already triaged)")
+        except (json.JSONDecodeError, KeyError):
+            print(f"  Warning: Corrupt checkpoint file, starting fresh")
+            start_index = 0
+            all_results = []
+
+    if start_index >= len(documents):
+        print(f"\n  Triage already complete ({len(all_results)} documents)")
+        return all_results
+
+    remaining = len(documents) - start_index
+    print(f"\n  Running triage on {remaining} documents (local Mistral 7B)...")
     print(f"  Cost: $0 (local model)")
+    print(f"  Checkpoint: {checkpoint_file}")
 
     # Process in batches of 10 for better quality
-    all_results = []
     batch_size = 10
+    total_batches = (len(documents) + batch_size - 1) // batch_size
+    checkpoint_interval = 10  # Save every 10 batches
 
-    for i in range(0, len(documents), batch_size):
+    for i in range(start_index, len(documents), batch_size):
         batch = documents[i:i + batch_size]
         batch_text = format_emails_for_prompt(batch)
         prompt = TRIAGE_PROMPT.format(context=context, emails=batch_text)
+        batch_num = i // batch_size + 1
 
-        print(f"  Triage batch {i // batch_size + 1}/{(len(documents) + batch_size - 1) // batch_size}...")
+        print(f"  Triage batch {batch_num}/{total_batches}...")
 
         try:
             response = call_ollama(prompt)
             # Try to parse JSON from response
             try:
                 # Extract JSON blocks
-                import re
                 json_blocks = re.findall(r'\{[^{}]+\}', response, re.DOTALL)
                 for j, block in enumerate(json_blocks):
                     try:
@@ -295,6 +328,18 @@ def run_triage(documents: list[dict], context: str, config: dict) -> list[dict]:
             for doc in batch:
                 doc["triage"] = {"confidence": "failed", "relevance_score": 0}
                 all_results.append(doc)
+
+        # Checkpoint every N batches
+        if batch_num % checkpoint_interval == 0:
+            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(checkpoint_path, "w") as f:
+                json.dump({"next_index": i + batch_size, "results": all_results}, f)
+            print(f"  (Checkpoint saved: {len(all_results)} documents triaged)")
+
+    # Final save and clean up checkpoint
+    if checkpoint_path.exists():
+        checkpoint_path.unlink()
+        print(f"  (Checkpoint removed — triage complete)")
 
     return all_results
 

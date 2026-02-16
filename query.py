@@ -87,16 +87,8 @@ def build_where_filter(args: dict) -> dict | None:
     if args.get("folder"):
         conditions.append({"folder": {"$eq": args["folder"]}})
 
-    if args.get("date_from"):
-        conditions.append({"date": {"$gte": args["date_from"]}})
-
-    if args.get("date_to"):
-        conditions.append({"date": {"$lte": args["date_to"]}})
-
-    if args.get("year"):
-        year = str(args["year"])
-        conditions.append({"date": {"$gte": f"{year}-01-01"}})
-        conditions.append({"date": {"$lte": f"{year}-12-31"}})
+    # Note: date_from, date_to, and year are filtered post-query in Python
+    # because ChromaDB $gte/$lte only work on numeric types, not strings.
 
     if args.get("has_attachments"):
         conditions.append({"has_attachments": {"$eq": True}})
@@ -338,6 +330,23 @@ def main():
             cc_list = json.loads(m.get("cc", "[]"))
             if args["cc"] in [c.lower() for c in cc_list]:
                 filtered.append((m, d, s))
+        metadatas = [f[0] for f in filtered]
+        documents = [f[1] for f in filtered]
+        scores = [f[2] for f in filtered]
+
+    # Post-filter by date (ChromaDB $gte/$lte only work on numeric types)
+    date_from = args.get("date_from") or (f"{args['year']}-01-01" if args.get("year") else None)
+    date_to = args.get("date_to") or (f"{args['year']}-12-31" if args.get("year") else None)
+
+    if date_from or date_to:
+        filtered = []
+        for m, d, s in zip(metadatas, documents, scores):
+            date = m.get("date", "")
+            if date_from and date < date_from:
+                continue
+            if date_to and date > date_to:
+                continue
+            filtered.append((m, d, s))
         metadatas = [f[0] for f in filtered]
         documents = [f[1] for f in filtered]
         scores = [f[2] for f in filtered]
