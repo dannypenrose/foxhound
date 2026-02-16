@@ -158,6 +158,10 @@ def filter_metadata(metadatas: list[dict], **kwargs) -> list[dict]:
         folder = kwargs["folder"].lower()
         filtered = [m for m in filtered if m.get("folder", "").lower() == folder]
 
+    if "source_type" in kwargs and kwargs["source_type"]:
+        stype = kwargs["source_type"].lower()
+        filtered = [m for m in filtered if m.get("source_type", "").lower() == stype]
+
     if "date_from" in kwargs and kwargs["date_from"]:
         filtered = [m for m in filtered if m.get("date", "") >= kwargs["date_from"]]
 
@@ -269,8 +273,8 @@ def main():
     kwargs = {}
     for flag, key in [("--year", "year"), ("--sender", "sender"),
                       ("--recipient", "recipient"), ("--folder", "folder"),
-                      ("--keyword", "keyword"), ("--from", "date_from"),
-                      ("--to", "date_to")]:
+                      ("--source-type", "source_type"), ("--keyword", "keyword"),
+                      ("--from", "date_from"), ("--to", "date_to")]:
         if flag in sys.argv:
             idx = sys.argv.index(flag)
             kwargs[key] = sys.argv[idx + 1]

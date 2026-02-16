@@ -319,7 +319,24 @@ wheels = [
 ]
 
 [[package]]
-name = "email-rag"
+name = "filelock"
+version = "3.24.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/cd/fa3ab025a8f9772e8a9146d8fd8eef6d62649274d231ca84249f54a0de4a/filelock-3.24.0.tar.gz", hash = "sha256:aeeab479339ddf463a1cdd1f15a6e6894db976071e5883efc94d22ed5139044b", size = 37166, upload-time = "2026-02-14T16:05:28.723Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/dd/d7e7f4f49180e8591c9e1281d15ecf8e7f25eb2c829771d9682f1f9fe0c8/filelock-3.24.0-py3-none-any.whl", hash = "sha256:eebebb403d78363ef7be8e236b63cc6760b0004c7464dceaba3fd0afbd637ced", size = 23977, upload-time = "2026-02-14T16:05:27.578Z" },
+]
+
+[[package]]
+name = "flatbuffers"
+version = "25.12.19"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl", hash = "sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4", size = 26661, upload-time = "2025-12-19T23:16:13.622Z" },
+]
+
+[[package]]
+name = "foxhound"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
@@ -343,23 +360,6 @@ requires-dist = [
     { name = "python-docx", specifier = ">=1.2.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sentence-transformers", specifier = ">=5.2.2" },
-]
-
-[[package]]
-name = "filelock"
-version = "3.24.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/00/cd/fa3ab025a8f9772e8a9146d8fd8eef6d62649274d231ca84249f54a0de4a/filelock-3.24.0.tar.gz", hash = "sha256:aeeab479339ddf463a1cdd1f15a6e6894db976071e5883efc94d22ed5139044b", size = 37166, upload-time = "2026-02-14T16:05:28.723Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d9/dd/d7e7f4f49180e8591c9e1281d15ecf8e7f25eb2c829771d9682f1f9fe0c8/filelock-3.24.0-py3-none-any.whl", hash = "sha256:eebebb403d78363ef7be8e236b63cc6760b0004c7464dceaba3fd0afbd637ced", size = 23977, upload-time = "2026-02-14T16:05:27.578Z" },
-]
-
-[[package]]
-name = "flatbuffers"
-version = "25.12.19"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl", hash = "sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4", size = 26661, upload-time = "2025-12-19T23:16:13.622Z" },
 ]
 
 [[package]]
