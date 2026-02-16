@@ -1,0 +1,87 @@
+# Getting Started
+
+Get Foxhound running on your machine in under 5 minutes.
+
+## Prerequisites
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [Ollama](https://ollama.ai) with `mistral:7b` model (for free local analysis)
+- OpenRouter API key (only for paid cloud analysis)
+
+## Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone <repo-url>
+cd foxhound
+```
+
+All Python dependencies are managed by `uv` and installed automatically on first run.
+
+## Configuration
+
+Copy the example config and edit your source paths:
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+### Email Sources
+
+Configure email paths under `deduplication.source_paths`:
+
+```yaml
+deduplication:
+  source_paths:
+    - "~/path/to/exported-emails"
+```
+
+### Other Sources
+
+Configure diary, meeting notes, and documents under `ingestion.sources`:
+
+```yaml
+ingestion:
+  sources:
+    - type: diary
+      path: "~/path/to/diary"
+      entry_separator: "## "
+    - type: meeting_note
+      path: "~/path/to/meeting-notes"
+    - type: document
+      path: "~/path/to/documents"
+```
+
+## First Run
+
+### 1. Deduplicate emails (skip if no emails)
+
+```bash
+uv run python dedup.py
+```
+
+### 2. Embed all sources into ChromaDB
+
+```bash
+uv run python ingest.py
+```
+
+### 3. Explore your corpus
+
+```bash
+uv run python explore.py
+```
+
+### 4. Run your first search
+
+```bash
+uv run python query.py --semantic "important topic" --top-k 50
+```
+
+## Next Steps
+
+- Browse [Use Cases](./use-cases/) to see real-world workflows
+- Read [Guides](./guides/) for detailed how-to instructions
+- Check [Reference](./reference/) for all CLI options

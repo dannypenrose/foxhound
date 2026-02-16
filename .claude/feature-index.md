@@ -39,3 +39,9 @@ Quick reference for locating files by feature area.
 - `README.md` - Quick start, model pricing, full pipeline workflow
 - `CLAUDE.md` - Claude Code project context
 - `.claude/feature-index.md` - This file
+- `docs/index.mdx` - Documentation site landing page
+- `docs/getting-started.mdx` - Installation and first run guide
+- `docs/use-cases/` - Real-world scenario workflows (6 use cases)
+- `docs/guides/` - How-to guides (multi-search, models, privacy, export)
+- `docs/concepts/` - Architecture and two-stage scoring explanations
+- `docs/reference/` - CLI commands and configuration reference

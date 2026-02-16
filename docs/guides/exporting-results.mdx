@@ -1,0 +1,77 @@
+# Exporting Results
+
+Format and export search results and analysis for sharing or further processing.
+
+## Export Formats
+
+### CSV Export (from query.py)
+
+Export search results to CSV for spreadsheet review:
+
+```bash
+uv run python query.py \
+  --sender someone@example.com \
+  --year 2025 \
+  --export results.csv
+```
+
+### JSON Export (for analysis pipeline)
+
+Export to JSON as input for the analysis stage:
+
+```bash
+uv run python query.py \
+  --semantic "project concerns" \
+  --top-k 100 \
+  --export-json results.json
+```
+
+### Clipboard Export (from export.py)
+
+Copy analysis output directly to clipboard:
+
+```bash
+uv run python export.py analysis_output.md --clipboard
+```
+
+### File Export (from export.py)
+
+Save analysis to a file:
+
+```bash
+uv run python export.py analysis_output.md --output report.md
+```
+
+### Raw Evidence Export
+
+Export the raw evidence package from JSON results:
+
+```bash
+uv run python export.py results.json --raw --clipboard
+```
+
+## Workflow
+
+A typical export workflow:
+
+```bash
+# 1. Search and save results
+uv run python query.py --semantic "key topic" --export-json results.json
+
+# 2. Analyse
+uv run python analyze.py results.json \
+  --full-pipeline --context "Summarise findings" --model deepseek
+
+# 3. Export analysis
+uv run python export.py analysis_output.md --output final-report.md
+
+# 4. Or copy to clipboard for pasting into another tool
+uv run python export.py analysis_output.md --clipboard
+```
+
+## Tips
+
+- Use `--export results.csv` for quick manual review in a spreadsheet
+- Use `--export-json results.json` when you plan to run AI analysis
+- The `--raw` flag exports the unprocessed evidence, useful for pasting into external LLMs
+- CSV exports include metadata (sender, date, subject, similarity score)

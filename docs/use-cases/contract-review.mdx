@@ -1,0 +1,97 @@
+# Contract Review
+
+Semantic search across large document sets to find relevant clauses, commitments, or obligations.
+
+## The Problem
+
+Contract review across hundreds of documents requires finding specific clauses, obligations, and commitments. Traditional keyword search fails when different contracts use different language for the same concepts — "termination clause" vs "exit provisions" vs "contract end terms".
+
+## Workflow
+
+### 1. Configure Document Sources
+
+Point Foxhound at your contract repository:
+
+```yaml
+ingestion:
+  sources:
+    - type: document
+      path: "~/contracts/vendor-agreements"
+    - type: document
+      path: "~/contracts/employment"
+    - type: document
+      path: "~/contracts/partnership-agreements"
+```
+
+### 2. Ingest and Explore
+
+```bash
+uv run python ingest.py --reset
+uv run python explore.py --source-type document
+```
+
+### 3. Search for Specific Clause Types
+
+```bash
+mkdir -p evidence
+
+uv run python query.py \
+  --semantic "termination notice period exit clause" \
+  --source-type document \
+  --top-k 100 --export-json evidence/termination.json
+
+uv run python query.py \
+  --semantic "liability indemnity limitation damages" \
+  --source-type document \
+  --top-k 100 --export-json evidence/liability.json
+
+uv run python query.py \
+  --semantic "payment terms invoice schedule milestone" \
+  --source-type document \
+  --top-k 100 --export-json evidence/payment.json
+
+uv run python query.py \
+  --semantic "confidentiality non-disclosure NDA intellectual property" \
+  --source-type document \
+  --top-k 100 --export-json evidence/confidentiality.json
+```
+
+### 4. Review Inline
+
+Preview results before running the full analysis:
+
+```bash
+# Show body previews
+uv run python query.py \
+  --semantic "termination notice period" \
+  --source-type document --show
+
+# Read a specific result in full
+uv run python query.py \
+  --semantic "termination notice period" \
+  --source-type document --read 3
+```
+
+### 5. Merge and Analyse
+
+```bash
+uv run python merge.py evidence/*.json --output evidence/merged.json
+
+uv run python analyze.py evidence/merged.json \
+  --full-pipeline \
+  --context "Extract and summarise key contractual obligations, notice periods, liability caps, and payment terms" \
+  --model deepseek
+```
+
+### 6. Export Summary
+
+```bash
+uv run python export.py analysis_output.md --output contract-summary.md
+```
+
+## Tips
+
+- Semantic search excels here — it matches "30-day notice period" when you search for "termination clause"
+- Use `--source-type document` to exclude emails and notes from contract-focused searches
+- For large contract sets, use `gemini-flash` with its 1M token context window
+- Export to CSV with `--export clauses.csv` for spreadsheet comparison across contracts

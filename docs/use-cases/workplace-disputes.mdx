@@ -1,0 +1,100 @@
+# Workplace Disputes
+
+Gather email trails, meeting notes, and diary entries to build a chronological evidence pack for HR or legal review.
+
+## The Problem
+
+Workplace disputes often involve scattered evidence across email threads, meeting notes, and personal records spanning months or years. Manually assembling a timeline is time-consuming and risks missing critical communications.
+
+## Workflow
+
+### 1. Configure Sources
+
+Set up `config.yaml` to point at the relevant source directories:
+
+```yaml
+deduplication:
+  source_paths:
+    - "~/exported-emails/work"
+
+ingestion:
+  sources:
+    - type: diary
+      path: "~/diary/work-journal"
+      entry_separator: "## "
+    - type: meeting_note
+      path: "~/meeting-notes/team"
+    - type: document
+      path: "~/documents/hr-correspondence"
+```
+
+### 2. Ingest Everything
+
+```bash
+uv run python dedup.py
+uv run python ingest.py --reset
+```
+
+### 3. Multi-Search Strategy
+
+Run several searches with different phrasings to maximise recall:
+
+```bash
+mkdir -p evidence
+
+uv run python query.py \
+  --semantic "performance review concerns feedback" \
+  --top-k 200 --export-json evidence/reviews.json
+
+uv run python query.py \
+  --semantic "meeting conduct behaviour complaint" \
+  --top-k 200 --export-json evidence/conduct.json
+
+uv run python query.py \
+  --semantic "workload pressure stress unreasonable" \
+  --top-k 200 --export-json evidence/workload.json
+```
+
+### 4. Merge and Deduplicate
+
+```bash
+uv run python merge.py evidence/*.json --output evidence/merged.json
+```
+
+### 5. Filter by Specific People
+
+Narrow down to communications involving specific individuals:
+
+```bash
+uv run python query.py \
+  --sender "manager@company.com,hr@company.com" \
+  --date-range 2024-01-01 2025-01-01 \
+  --export-json evidence/key-people.json
+```
+
+### 6. AI Analysis
+
+Use the full pipeline for triage and deep analysis:
+
+```bash
+uv run python analyze.py evidence/merged.json \
+  --full-pipeline \
+  --context "Identify incidents, dates, and communications relevant to a workplace grievance" \
+  --model deepseek \
+  --dry-run
+```
+
+Review the cost estimate, then run without `--dry-run` to proceed.
+
+### 7. Export for Review
+
+```bash
+uv run python export.py analysis_output.md --clipboard
+```
+
+## Tips
+
+- Use `--date-range` to focus on the relevant period
+- The pseudonymisation layer automatically protects names when using cloud models
+- For maximum privacy, use `--local` to keep everything on your machine
+- Export to CSV with `--export results.csv` for spreadsheet review

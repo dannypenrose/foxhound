@@ -1,0 +1,89 @@
+# Due Diligence
+
+Search across thousands of documents for red flags, inconsistencies, or undisclosed risks before a deal closes.
+
+## The Problem
+
+Due diligence requires reviewing large volumes of documents under time pressure. Important details hide in email threads, board minutes, and contracts. Traditional keyword search misses contextually relevant content that uses different wording.
+
+## Workflow
+
+### 1. Configure Document Sources
+
+Point Foxhound at the due diligence data room:
+
+```yaml
+ingestion:
+  sources:
+    - type: document
+      path: "~/due-diligence/contracts"
+    - type: document
+      path: "~/due-diligence/financial-reports"
+    - type: document
+      path: "~/due-diligence/board-minutes"
+    - type: meeting_note
+      path: "~/due-diligence/meeting-notes"
+```
+
+### 2. Ingest the Corpus
+
+```bash
+uv run python ingest.py --reset
+```
+
+### 3. Explore the Corpus
+
+Get a high-level view of what you're working with:
+
+```bash
+uv run python explore.py
+uv run python explore.py --source-type document
+```
+
+### 4. Targeted Searches
+
+Run semantic searches for common red flags:
+
+```bash
+mkdir -p evidence
+
+uv run python query.py \
+  --semantic "litigation pending lawsuit legal dispute" \
+  --top-k 200 --export-json evidence/litigation.json
+
+uv run python query.py \
+  --semantic "debt obligation liability undisclosed" \
+  --top-k 200 --export-json evidence/liabilities.json
+
+uv run python query.py \
+  --semantic "regulatory compliance violation fine penalty" \
+  --top-k 200 --export-json evidence/compliance.json
+
+uv run python query.py \
+  --semantic "key person departure resignation retention" \
+  --top-k 200 --export-json evidence/key-people.json
+```
+
+### 5. Merge and Analyse
+
+```bash
+uv run python merge.py evidence/*.json --output evidence/merged.json
+
+uv run python analyze.py evidence/merged.json \
+  --full-pipeline \
+  --context "Identify red flags, undisclosed risks, and material inconsistencies across the document set" \
+  --model deepseek
+```
+
+### 6. Export Findings
+
+```bash
+uv run python export.py analysis_output.md --output due-diligence-report.md
+```
+
+## Tips
+
+- Use `--source-type document` to filter searches to formal documents only
+- Run `explore.py` first to understand the volume and date range of your corpus
+- Semantic search finds conceptually related content even when exact terms differ — "financial difficulty" matches "cash flow problems"
+- For large corpora (\>1000 documents), use `gemini-flash` for its 1M token context window

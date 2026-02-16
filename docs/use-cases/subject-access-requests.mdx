@@ -1,0 +1,86 @@
+# Subject Access Requests
+
+Quickly locate every document mentioning a specific person across all source types to respond to SARs under GDPR or similar data protection legislation.
+
+## The Problem
+
+Subject access requests require identifying all personal data held about an individual. This data is often scattered across emails, meeting notes, diary entries, and documents with no centralised index.
+
+## Workflow
+
+### 1. Ingest All Sources
+
+Ensure all relevant data sources are configured and ingested:
+
+```bash
+uv run python dedup.py
+uv run python ingest.py
+```
+
+### 2. Count Documents for the Subject
+
+Start with a count to understand scope:
+
+```bash
+uv run python query.py --count-only --sender "subject@example.com"
+```
+
+### 3. Retrieve All Communications From the Subject
+
+```bash
+uv run python query.py \
+  --sender "subject@example.com" \
+  --export-json evidence/from-subject.json
+```
+
+### 4. Semantic Search for Mentions
+
+The subject may be mentioned in documents they did not author:
+
+```bash
+uv run python query.py \
+  --semantic "John Smith" \
+  --top-k 500 \
+  --export-json evidence/mentions.json
+```
+
+### 5. Search Across Source Types
+
+Filter by source type to ensure coverage:
+
+```bash
+uv run python query.py \
+  --semantic "John Smith" --source-type meeting_note \
+  --export-json evidence/meetings.json
+
+uv run python query.py \
+  --semantic "John Smith" --source-type diary \
+  --export-json evidence/diary.json
+```
+
+### 6. Merge All Results
+
+```bash
+uv run python merge.py evidence/*.json --output evidence/sar-complete.json
+```
+
+### 7. Review and Pseudonymise
+
+Before sharing any output, apply pseudonymisation to protect third-party data:
+
+```bash
+uv run python pseudonymise.py --show
+```
+
+### 8. Export for Disclosure
+
+```bash
+uv run python export.py evidence/sar-complete.json --raw --output sar-disclosure.md
+```
+
+## Tips
+
+- Use `--sender` with multiple comma-separated addresses to catch all email aliases
+- Semantic search catches informal references — "John", "JS", "the new hire" — that keyword search misses
+- Run `explore.py --sender subject@example.com` for a quick summary of their communications
+- The pseudonymisation layer can redact third-party names before disclosure
