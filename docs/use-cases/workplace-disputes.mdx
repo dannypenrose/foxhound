@@ -72,13 +72,29 @@ uv run python query.py \
   --export-json evidence/key-people.json
 ```
 
-### 6. AI Analysis
+### 6. Triage Separately (recommended)
 
-Use the full pipeline for triage and deep analysis:
+Run triage as a standalone step so results are saved to disk. This lets you
+re-run deep analysis at different relevance thresholds without re-triaging.
 
 ```bash
 uv run python analyze.py evidence/merged.json \
+  --triage \
+  --context "Identify incidents, dates, and communications relevant to a workplace grievance" \
+  --output evidence/triaged.json
+```
+
+Triage uses local Mistral 7B (free, private) but is slow for large corpora.
+Checkpoints save every 10 batches — if interrupted, re-run to resume.
+
+### 7. Deep Analysis (on triaged results)
+
+Use `--min-relevance 5` to cast a wide net, then tighten if needed:
+
+```bash
+uv run python analyze.py evidence/triaged.json \
   --full-pipeline \
+  --min-relevance 5 \
   --context "Identify incidents, dates, and communications relevant to a workplace grievance" \
   --model deepseek \
   --dry-run
@@ -86,7 +102,9 @@ uv run python analyze.py evidence/merged.json \
 
 Review the cost estimate, then run without `--dry-run` to proceed.
 
-### 7. Export for Review
+If the output is too noisy, re-run at `--min-relevance 7` (no re-triage needed).
+
+### 8. Export for Review
 
 ```bash
 uv run python export.py analysis_output.md --clipboard
@@ -94,7 +112,10 @@ uv run python export.py analysis_output.md --clipboard
 
 ## Tips
 
+- **Always triage separately** with `--triage --output` so results are saved to disk
+- Start with `--min-relevance 5` to avoid missing borderline evidence
 - Use `--date-range` to focus on the relevant period
 - The pseudonymisation layer automatically protects names when using cloud models
 - For maximum privacy, use `--local` to keep everything on your machine
 - Export to CSV with `--export results.csv` for spreadsheet review
+- Triage checkpoints save progress — re-run to resume if interrupted
