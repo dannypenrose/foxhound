@@ -4,6 +4,8 @@ A local, privacy-first document search and analysis pipeline. Ingest emails, dia
 
 Foxhound tracks down what matters across large, messy document collections without sending anything to the cloud (unless you choose to).
 
+[Documentation](https://docs.dannypenrose.com/foxhound)
+
 ## Use Cases
 
 - **Workplace disputes** — Gather email trails, meeting notes, and diary entries to build a chronological evidence pack for HR or legal review
