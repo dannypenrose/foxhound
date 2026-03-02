@@ -1,5 +1,7 @@
 # Foxhound
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A local, privacy-first document search and analysis pipeline. Ingest emails, diary entries, meeting notes, and documents into a single searchable corpus — then explore with semantic search and optional AI-powered analysis.
 
 Foxhound tracks down what matters across large, messy document collections without sending anything to the cloud (unless you choose to).
@@ -327,3 +329,22 @@ rag/
     ├── chroma_db/          # Vector database
     └── alias_map.json      # Pseudonym mappings (local only)
 ```
+
+---
+
+## Disclaimer
+
+Foxhound is provided as a general-purpose document search and analysis toolkit. It is **not** a substitute for professional legal, HR, or compliance advice. If you are using Foxhound to support a workplace dispute, investigation, or any other legal matter:
+
+- **Consult a qualified professional** before relying on outputs as evidence or making decisions based on them.
+- **AI analysis is not infallible.** LLM-generated summaries, relevance scores, and triage results may contain errors, omissions, or hallucinations. Always verify AI outputs against the original source documents.
+- **You are responsible** for ensuring your use of this tool complies with applicable data protection laws (e.g. UK GDPR, DPA 2018) and any relevant workplace policies. Ingesting and processing other people's communications may carry legal obligations.
+- **No warranty.** This software is provided "as is" without warranty of any kind. See the [LICENSE](LICENSE) file for full terms.
+
+The authors accept no liability for any decisions, actions, or outcomes arising from the use of this software.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
